@@ -23,5 +23,23 @@ namespace WorkerQueue_Consumer
             }
             return 0;
         }
+
+        public int SaveStuffSync(Payment payment)
+        {
+            using (var con =
+                new SqlConnection(
+                    "Initial Catalog=Rabbit;Data Source=.;User Id=sa;Password=nmqapass;Connection Timeout=30;Min Pool Size=20; Max Pool Size=200;")
+            )
+            {
+                con.Open();
+                using (var command = new SqlCommand(
+                    "INSERT INTO Payment VALUES(@name)", con))
+                {
+                    command.Parameters.Add(new SqlParameter("name", payment.Name));
+                    command.ExecuteNonQueryAsync();
+                }
+            }
+            return 0;
+        }
     }
 }

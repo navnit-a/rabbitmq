@@ -16,7 +16,7 @@ namespace WorkerQueue_Consumer
 
         private static void Main(string[] args)
         {
-            var t = new Thread(MyThreadMethod) {IsBackground = true};
+            var t = new Thread(MyThreadMethod) { IsBackground = true };
             t.Start();
             Console.WriteLine("The thread's background status is: " + t.IsBackground);
             Console.Read();
@@ -44,20 +44,38 @@ namespace WorkerQueue_Consumer
             var consumer = new QueueingBasicConsumer(_model);
             _model.BasicConsume(QueueName, false, consumer);
 
+            var stopwatch = new Stopwatch();
+            var countMessageProcessed = 0;
+
             while (true)
             {
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
                 var ea = consumer.Queue.Dequeue();
-                var message = (Payment) ea.Body.DeSerialize(typeof(Payment));
-                Console.WriteLine("---- Received {0} : ", message.Name);
+                var messageCount = (int)_model.MessageCount(QueueName);
+                Console.WriteLine("Queue Size :: " + messageCount);
+
+                // Waiting for over 10,000 messages to begin processing
+                stopwatch.Start();
+                var message = (Payment)ea.Body.DeSerialize(typeof(Payment));
+                Console.WriteLine("Saving Message to db Received {0} : ", message.Name);
 
                 var sqlStuff = new SqlStuff();
                 await sqlStuff.SaveStuff(message);
 
                 _model.BasicAck(ea.DeliveryTag, false); // send a message to RabbitMQ server, saying you can discard it now
-                stopwatch.Stop();
-                Console.WriteLine("Elapsed :: " + stopwatch.Elapsed.TotalSeconds);
+                countMessageProcessed++;
+
+                if (countMessageProcessed == 10000)
+                {
+                    Console.BackgroundColor = ConsoleColor.Blue;
+                    Console.ForegroundColor = ConsoleColor.White;
+                    stopwatch.Stop();
+                    Console.WriteLine("======================================================================");
+                    Console.WriteLine("Processed Messages :: " + countMessageProcessed);
+                    Console.WriteLine("Elapsed Time :: " + stopwatch.Elapsed.TotalSeconds);
+                    Console.WriteLine("Messages processed per seconds :: " + stopwatch.Elapsed.TotalSeconds / 10000);
+                    Console.WriteLine("======================================================================");
+                    Console.ReadLine();
+                }
             }
         }
     }
